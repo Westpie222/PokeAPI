@@ -9,8 +9,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
 } from 'react-native';
-
-import {Audio} from 'expo-av';
+import { Audio } from 'expo-av';
 
 interface PokeApiResult {
   name: string;
@@ -21,12 +20,23 @@ interface PokeApiResponse {
   results: PokeApiResult[];
 }
 
+// 1. Agregamos el arreglo de tipos a la interfaz
 interface PokemonItem {
   id: string;
   name: string;
   image: string;
   sound: string;
+  types: string[];
 }
+
+// 2. Diccionario de colores para los tipos
+const TYPE_COLORS: { [key: string]: string } = {
+  normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C',
+  grass: '#7AC74C', ice: '#96D9D6', fighting: '#C22E28', poison: '#A33EA1',
+  ground: '#E2BF65', flying: '#A98FF3', psychic: '#F95587', bug: '#A6B91A',
+  rock: '#B6A136', ghost: '#735797', dragon: '#6F35FC', dark: '#705898',
+  steel: '#B7B7CE', fairy: '#D685AD',
+};
 
 export default function App() {
   const [pokemon, setPokemon] = useState<PokemonItem[]>([]);
@@ -37,23 +47,36 @@ export default function App() {
       const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=100&offset=0');
       const data: PokeApiResponse = await response.json();
 
-      const pokemonList: PokemonItem[] = data.results.map((poke: PokeApiResult) => {
-        const id = poke.url.split('/')[6];
-        return {
-          id: id,
-          name: poke.name,
-          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
-          sound: `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`,
-        };
-      });
+      // 3. Usamos Promise.all para hacer un fetch individual por cada Pokémon y obtener sus detalles
+      const detailedPokemonList = await Promise.all(
+          data.results.map(async (poke: PokeApiResult) => {
+            const id = poke.url.split('/')[6];
 
-      setPokemon(pokemonList);
+            // Petición extra a la URL específica del Pokémon
+            const detailResponse = await fetch(poke.url);
+            const detailData = await detailResponse.json();
+
+            // Mapeamos el arreglo anidado de tipos a un arreglo simple de strings
+            const types = detailData.types.map((t: any) => t.type.name);
+
+            return {
+              id: id,
+              name: poke.name,
+              image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+              sound: `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`,
+              types: types,
+            };
+          })
+      );
+
+      setPokemon(detailedPokemonList);
       setLoading(false);
     } catch (error) {
       console.error('Error al obtener los Pokémon:', error);
       setLoading(false);
     }
   };
+
   const playSound = async (uri: string) => {
     try {
       const { sound } = await Audio.Sound.createAsync({ uri });
@@ -87,6 +110,21 @@ export default function App() {
                 <View style={styles.card}>
                   <Image source={{ uri: item.image }} style={styles.image} />
                   <Text style={styles.name}>{item.name}</Text>
+
+                  {/* 4. Renderizamos los tipos dinámicamente */}
+                  <View style={styles.typesContainer}>
+                    {item.types?.map((type, index) => (
+                        <View
+                            key={index}
+                            style={[
+                              styles.typeBadge,
+                              { backgroundColor: TYPE_COLORS[type] || '#777' } // Color dinámico
+                            ]}
+                        >
+                          <Text style={styles.typeText}>{type}</Text>
+                        </View>
+                    ))}
+                  </View>
 
                   <TouchableOpacity
                       style={styles.button}
@@ -141,6 +179,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textTransform: 'capitalize',
     color: '#333',
+  },
+  // Nuevos estilos para los tipos
+  typesContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  typeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   button: {
     marginTop: 10,
