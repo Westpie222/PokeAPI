@@ -1,98 +1,157 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  SafeAreaView,
+  TouchableOpacity,
+} from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import {Audio} from 'expo-av';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+interface PokeApiResult {
+  name: string;
+  url: string;
 }
 
-export default function HomeScreen() {
+interface PokeApiResponse {
+  results: PokeApiResult[];
+}
+
+interface PokemonItem {
+  id: string;
+  name: string;
+  image: string;
+  sound: string;
+}
+
+export default function App() {
+  const [pokemon, setPokemon] = useState<PokemonItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const fetchPokemon = async (): Promise<void> => {
+    try {
+      const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=100&offset=0');
+      const data: PokeApiResponse = await response.json();
+
+      const pokemonList: PokemonItem[] = data.results.map((poke: PokeApiResult) => {
+        const id = poke.url.split('/')[6];
+        return {
+          id: id,
+          name: poke.name,
+          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+          sound: `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`,
+        };
+      });
+
+      setPokemon(pokemonList);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error al obtener los Pokémon:', error);
+      setLoading(false);
+    }
+  };
+  const playSound = async (uri: string) => {
+    try {
+      const { sound } = await Audio.Sound.createAsync({ uri });
+      await sound.playAsync();
+    } catch (error) {
+      console.error('Error al reproducir audio:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPokemon();
+  }, []);
+
+  if (loading) {
+    return (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#E3350D" />
+          <Text style={{ marginTop: 10 }}>Cargando Pokédex...</Text>
+        </View>
+    );
+  }
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Pokédex</Text>
+        <FlatList
+            data={pokemon}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            renderItem={({ item }) => (
+                <View style={styles.card}>
+                  <Image source={{ uri: item.image }} style={styles.image} />
+                  <Text style={styles.name}>{item.name}</Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+                  <TouchableOpacity
+                      style={styles.button}
+                      onPress={() => playSound(item.sound)}
+                  >
+                    <Text style={styles.buttonText}>🔊 Escuchar</Text>
+                  </TouchableOpacity>
+                </View>
+            )}
+        />
       </SafeAreaView>
-    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: '#F5F5F5',
+    paddingTop: 40,
   },
-  safeArea: {
+  center: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    alignItems: 'center',
   },
   title: {
+    fontSize: 28,
+    fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
   },
-  code: {
-    textTransform: 'uppercase',
+  card: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    margin: 8,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  image: {
+    width: 100,
+    height: 100,
+  },
+  name: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+    color: '#333',
+  },
+  button: {
+    marginTop: 10,
+    backgroundColor: '#E3350D',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
