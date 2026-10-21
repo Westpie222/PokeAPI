@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { Audio } from 'expo-av';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
   FlatList,
   Image,
-  StyleSheet,
-  ActivityIndicator,
   SafeAreaView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
-import { Audio } from 'expo-av';
 
 interface PokeApiResult {
   name: string;
@@ -27,6 +27,7 @@ interface PokemonItem {
   sound: string;
   types: string[];
   altura: number;
+  peso: number;
 }
 
 const TYPE_COLORS: { [key: string]: string } = {
@@ -64,6 +65,7 @@ export default function App() {
               sound: `https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/${id}.ogg`,
               types: types,
               altura: detailData.height /10,
+              peso: detailData.weight / 10,
             };
           })
       );
@@ -124,6 +126,7 @@ export default function App() {
                     ))}
                   </View>
                   <Text> Altura: {item.altura} m</Text>
+                  <Text>Peso: {item.peso} kg</Text>
 
                   <TouchableOpacity
                       style={styles.button}
@@ -137,7 +140,6 @@ export default function App() {
       </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
