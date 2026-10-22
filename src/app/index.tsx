@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -86,6 +87,7 @@ export default function App() {
 
   const playSound = async (uri: string) => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const { sound } = await Audio.Sound.createAsync({ uri });
       await sound.playAsync();
     } catch (error) {
