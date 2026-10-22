@@ -1,4 +1,5 @@
 import { Audio } from 'expo-av';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,6 +10,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  Button,
 } from 'react-native';
 
 interface PokeApiResult {
@@ -41,6 +44,9 @@ const TYPE_COLORS: { [key: string]: string } = {
 export default function App() {
   const [pokemon, setPokemon] = useState<PokemonItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  const [permission, requestPermission] = useCameraPermissions();
+  const [showCamera, setShowCamera] = useState<boolean>(false);
 
   const fetchPokemon = async (): Promise<void> => {
     try {
@@ -100,9 +106,32 @@ export default function App() {
     );
   }
 
+  if (!permission) {
+    return <View />;
+  }
+
+  if (!permission.granted) {
+    return (
+        <View style={styles.center}>
+          <Text style={{ textAlign: 'center', marginBottom: 10 }}>
+            Necesitamos tu permiso para usar la cámara
+          </Text>
+          <Button onPress={requestPermission} title="Otorgar Permiso" color="#E3350D" />
+        </View>
+    );
+  }
+
   return (
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Pokédex</Text>
+
+        <TouchableOpacity
+            style={styles.openCameraButton}
+            onPress={() => setShowCamera(true)}
+        >
+          <Text style={styles.buttonText}>Camára</Text>
+        </TouchableOpacity>
+
         <FlatList
             data={pokemon}
             keyExtractor={(item) => item.id}
@@ -132,11 +161,23 @@ export default function App() {
                       style={styles.button}
                       onPress={() => playSound(item.sound)}
                   >
-                    <Text style={styles.buttonText}>🔊 Escuchar</Text>
+                    <Text style={styles.buttonText}>Escuchar</Text>
                   </TouchableOpacity>
                 </View>
             )}
         />
+        <Modal visible={showCamera} animationType="slide">
+          <CameraView style={styles.camera} facing="back">
+            <View style={styles.cameraControls}>
+              <TouchableOpacity
+                  style={styles.closeCameraButton}
+                  onPress={() => setShowCamera(false)}
+              >
+                <Text style={styles.buttonText}>Cerrar camára</Text>
+              </TouchableOpacity>
+            </View>
+          </CameraView>
+        </Modal>
       </SafeAreaView>
   );
 }
@@ -157,6 +198,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: '#333',
+  },
+  openCameraButton: {
+    backgroundColor: '#3B4CCA', // Azul tipo Pokémon
+    padding: 12,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraControls: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingBottom: 40, // Espacio desde abajo
+  },
+  closeCameraButton: {
+    backgroundColor: '#E3350D',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 30,
   },
   card: {
     flex: 1,
@@ -181,7 +247,6 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
     color: '#333',
   },
-  // Nuevos estilos para los tipos
   typesContainer: {
     flexDirection: 'row',
     gap: 6,
